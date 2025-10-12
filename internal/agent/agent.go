@@ -13,8 +13,8 @@ import (
 )
 
 type Agent struct {
-	genkit    *genkit.Genkit
-	modelName string
+	genkit *genkit.Genkit
+	model  ai.Model
 }
 
 type Response struct {
@@ -25,17 +25,32 @@ type Response struct {
 func New(ctx context.Context, cfg *config.Config) (*Agent, error) {
 	plugin := &ollama.Ollama{
 		ServerAddress: cfg.Model.Server,
+		Timeout:       cfg.Model.Timeout,
 	}
 
 	g := genkit.Init(ctx,
 		genkit.WithPlugins(plugin),
 	)
 
-	modelName := cfg.Model.Name
+	model := plugin.DefineModel(g,
+		ollama.ModelDefinition{
+			Name: cfg.Model.Name,
+			Type: "chat",
+		},
+		&ai.ModelOptions{
+			Label: "Ollama - " + cfg.Model.Name,
+			Supports: &ai.ModelSupports{
+				Multiturn:  true,
+				SystemRole: true,
+				Tools:      false,
+				Media:      false,
+			},
+		},
+	)
 
 	return &Agent{
-		genkit:    g,
-		modelName: modelName,
+		genkit: g,
+		model:  model,
 	}, nil
 }
 
@@ -59,7 +74,7 @@ func (a *Agent) GenerateCommand(ctx context.Context, userInput string, history [
 	})
 
 	resp, err := genkit.Generate(ctx, a.genkit,
-		ai.WithModel(ollama.Model(a.genkit, a.modelName)),
+		ai.WithModel(a.model),
 		ai.WithMessages(messages...),
 	)
 
