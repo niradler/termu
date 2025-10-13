@@ -49,6 +49,28 @@ termu favors modern, cross-platform CLI tools to accomplish tasks efficiently. Y
 | [dua](https://github.com/Byron/dua-cli)          | Disk analysis     | Interactive disk usage visualization     |
 | [eza](https://eza.rocks/)                        | Directory listing | Modern ls with colors and Git status     |
 
+### 🛠️ Structured Tool Calling
+
+termu uses [Genkit's tool calling feature](https://genkit.dev/docs/tool-calling/?lang=go) for intelligent filesystem operations and command execution.
+
+**Available Tools:**
+
+| Tool              | Purpose                     | When to Use                                  |
+| ----------------- | --------------------------- | -------------------------------------------- |
+| `read_file`       | Read complete file contents | Understanding code, checking implementations |
+| `write_file`      | Create or overwrite files   | Creating new files, major rewrites           |
+| `search_replace`  | Exact string replacements   | Targeted edits, renaming, bug fixes          |
+| `list_directory`  | List files and directories  | Exploring project structure                  |
+| `execute_command` | Run shell commands          | Searching (fd/rg), git operations, previews  |
+
+**Benefits of Structured Tool Calling:**
+
+- **Surgical edits**: Make precise changes with `search_replace` without rewriting entire files
+- **Syntax awareness**: Tools understand file structure and context
+- **Multi-step workflows**: Read → analyze → edit → verify in one interaction
+- **Reliable execution**: Structured interfaces eliminate command parsing errors
+- **Hybrid approach**: Combines direct file operations with shell commands for exploration
+
 ## Installation
 
 ### Prerequisites

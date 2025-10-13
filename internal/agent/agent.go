@@ -3,12 +3,12 @@ package agent
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/ollama"
 	"github.com/niradler/termu/internal/config"
+	"github.com/niradler/termu/internal/tools"
 )
 
 type Provider interface {
@@ -17,6 +17,8 @@ type Provider interface {
 
 type Agent struct {
 	provider Provider
+	genkit   *genkit.Genkit
+	tools    []ai.Tool
 }
 
 type OllamaProvider struct {
@@ -31,20 +33,30 @@ type Response struct {
 
 func New(ctx context.Context, cfg *config.Config) (*Agent, error) {
 	var provider Provider
-	var err error
+	var g *genkit.Genkit
+	var allTools []ai.Tool
 
 	switch cfg.Model.Provider {
 	case "ollama":
-		provider, err = newOllamaProvider(ctx, cfg)
+		ollamaProvider, err := newOllamaProvider(ctx, cfg)
+		if err != nil {
+			return nil, err
+		}
+		provider = ollamaProvider
+		g = ollamaProvider.genkit
+
+		fsTools := tools.DefineFilesystemTools(g, cfg.Workdir)
+		shellTool := tools.DefineShellTool(g, cfg.Workdir)
+		allTools = append(fsTools, shellTool)
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", cfg.Model.Provider)
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &Agent{provider: provider}, nil
+	return &Agent{
+		provider: provider,
+		genkit:   g,
+		tools:    allTools,
+	}, nil
 }
 
 func newOllamaProvider(ctx context.Context, cfg *config.Config) (*OllamaProvider, error) {
@@ -90,7 +102,7 @@ func (p *OllamaProvider) GenerateResponse(ctx context.Context, messages []*ai.Me
 	return resp.Text(), nil
 }
 
-func (a *Agent) GenerateCommand(ctx context.Context, userInput string, history []ai.Message) (*Response, error) {
+func (a *Agent) Generate(ctx context.Context, userInput string, history []ai.Message) (*Response, error) {
 	systemPrompt := GetSystemPrompt()
 
 	messages := []*ai.Message{
@@ -109,53 +121,30 @@ func (a *Agent) GenerateCommand(ctx context.Context, userInput string, history [
 		Content: []*ai.Part{ai.NewTextPart(userInput)},
 	})
 
-	text, err := a.provider.GenerateResponse(ctx, messages)
-	if err != nil {
-		return nil, err
+	toolRefs := make([]ai.ToolRef, len(a.tools))
+	for i, t := range a.tools {
+		toolRefs[i] = t
 	}
 
-	command := extractCommand(text)
+	resp, err := genkit.Generate(ctx, a.genkit,
+		ai.WithModel(a.getModel()),
+		ai.WithMessages(messages...),
+		ai.WithTools(toolRefs...),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate with tools: %w", err)
+	}
 
 	return &Response{
-		Text:    text,
-		Command: command,
+		Text:    resp.Text(),
+		Command: "",
 	}, nil
 }
 
-func extractCommand(text string) string {
-	lines := strings.Split(text, "\n")
-
-	knownCommands := map[string]bool{
-		"sd": true, "fd": true, "rg": true, "bat": true, "xsv": true,
-		"jaq": true, "yq": true, "dua": true, "eza": true,
-		"ls": true, "cat": true, "grep": true, "find": true,
-		"echo": true, "pwd": true, "cd": true, "git": true,
-		"curl": true, "wget": true, "rm": true, "mv": true,
-		"cp": true, "mkdir": true, "touch": true, "chmod": true,
+func (a *Agent) getModel() ai.Model {
+	if ollamaProvider, ok := a.provider.(*OllamaProvider); ok {
+		return ollamaProvider.model
 	}
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "```") {
-			continue
-		}
-		if line != "" && !strings.HasPrefix(line, "#") &&
-			!strings.Contains(line, "I'll") && !strings.Contains(line, "would") {
-			parts := strings.Fields(line)
-			if len(parts) > 0 {
-				cmd := strings.TrimPrefix(parts[0], "./")
-				cmd = strings.TrimPrefix(cmd, ".\\")
-
-				baseName := cmd
-				if idx := strings.LastIndexAny(cmd, "/\\"); idx != -1 {
-					baseName = cmd[idx+1:]
-				}
-
-				if knownCommands[baseName] {
-					return line
-				}
-			}
-		}
-	}
-	return ""
+	return nil
 }

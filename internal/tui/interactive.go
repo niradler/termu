@@ -450,7 +450,7 @@ func (m *Model) updateViewport() {
 
 func (m Model) callAgent() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.agent.GenerateCommand(m.ctx, m.currentInput, m.aiHistory)
+		resp, err := m.agent.Generate(m.ctx, m.currentInput, m.aiHistory)
 		return AgentResponseMsg{
 			Response: resp,
 			Error:    err,

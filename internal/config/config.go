@@ -13,6 +13,7 @@ type Config struct {
 	Security SecurityConfig `yaml:"security"`
 	Tools    ToolsConfig    `yaml:"tools"`
 	Logging  LoggingConfig  `yaml:"logging"`
+	Workdir  string         `yaml:"-"`
 }
 
 type ModelConfig struct {
@@ -44,6 +45,7 @@ type LoggingConfig struct {
 }
 
 func DefaultConfig() *Config {
+	workdir, _ := os.Getwd()
 	return &Config{
 		Model: ModelConfig{
 			Provider: "ollama",
@@ -76,6 +78,7 @@ func DefaultConfig() *Config {
 			Level: "info",
 			File:  "~/.termu/logs/termu.log",
 		},
+		Workdir: workdir,
 	}
 }
 
