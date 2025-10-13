@@ -12,10 +12,10 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/firebase/genkit/go/ai"
-	"github.com/yourusername/olloco/internal/agent"
-	"github.com/yourusername/olloco/internal/config"
-	"github.com/yourusername/olloco/internal/security"
-	"github.com/yourusername/olloco/internal/shell"
+	"github.com/niradler/termu/internal/agent"
+	"github.com/niradler/termu/internal/config"
+	"github.com/niradler/termu/internal/security"
+	"github.com/niradler/termu/internal/shell"
 )
 
 type SessionState int
@@ -43,7 +43,6 @@ type Model struct {
 	width       int
 	height      int
 	sandboxMode bool
-	yoloMode    bool
 	mdRenderer  *glamour.TermRenderer
 	agent       *agent.Agent
 	validator   *security.Validator
@@ -100,7 +99,6 @@ func NewModel(ctx context.Context, cfg *config.Config, sandboxMode bool) (Model,
 		width:       80,
 		height:      24,
 		sandboxMode: sandboxMode,
-		yoloMode:    cfg.Security.YoloMode,
 		mdRenderer:  renderer,
 		agent:       ag,
 		validator:   security.New(cfg),
@@ -138,6 +136,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateViewport()
 				return m, m.processUserInput(userInput)
 			} else if m.state == StateApproval {
+				m.validator.ApproveCommand(m.currentCmd)
 				m.state = StateExecuting
 				m.updateViewport()
 				return m, m.executeCommand()
@@ -232,15 +231,13 @@ func (m Model) View() string {
 }
 
 func (m Model) renderHeader() string {
-	title := TitleStyle.Render("🤖 Olloco - AI Shell Assistant")
+	title := TitleStyle.Render("🤖 termu - Your Terminal Sidekick")
 
 	var mode string
-	if m.yoloMode {
-		mode = YoloStyle.Render(" ⚠️  YOLO MODE ⚠️  ")
-	} else if m.sandboxMode {
+	if m.sandboxMode {
 		mode = SandboxStyle.Render(" SANDBOX ")
 	} else {
-		mode = StatusBarStyle.Render(" LIVE ")
+		mode = StatusBarStyle.Render(" SESSION ")
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, title, " ", mode)
@@ -278,7 +275,7 @@ func (m *Model) updateViewport() {
 			b.WriteString("\n\n")
 
 		case "assistant":
-			b.WriteString(InfoStyle.Render("🤖 AI: "))
+			b.WriteString(InfoStyle.Render("🤖 termu: "))
 			b.WriteString("\n")
 			if rendered, err := m.mdRenderer.Render(msg.Content); err == nil {
 				b.WriteString(rendered)

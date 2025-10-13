@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yourusername/olloco/internal/config"
+	"github.com/niradler/termu/internal/config"
 )
 
 type Validator struct {
-	config *config.Config
+	config           *config.Config
+	approvedCommands map[string]bool
 }
 
 type ValidationResult struct {
@@ -30,19 +31,28 @@ const (
 )
 
 func New(cfg *config.Config) *Validator {
-	return &Validator{config: cfg}
+	return &Validator{
+		config:           cfg,
+		approvedCommands: make(map[string]bool),
+	}
+}
+
+func (v *Validator) ApproveCommand(command string) {
+	baseCmd := extractBaseCommand(command)
+	v.approvedCommands[baseCmd] = true
+}
+
+func (v *Validator) IsApproved(command string) bool {
+	baseCmd := extractBaseCommand(command)
+	return v.approvedCommands[baseCmd]
+}
+
+func (v *Validator) ClearApprovals() {
+	v.approvedCommands = make(map[string]bool)
 }
 
 func (v *Validator) Validate(command string, workdir string) *ValidationResult {
 	command = strings.TrimSpace(command)
-
-	if v.config.Security.YoloMode {
-		return &ValidationResult{
-			Allowed:       true,
-			RiskLevel:     RiskLow,
-			NeedsApproval: false,
-		}
-	}
 
 	if blocked := v.checkBlockedPatterns(command); blocked != nil {
 		return blocked
@@ -68,6 +78,10 @@ func (v *Validator) Validate(command string, workdir string) *ValidationResult {
 
 	riskLevel := v.assessRisk(command)
 	needsApproval := v.needsApproval(command, riskLevel)
+
+	if needsApproval && v.IsApproved(command) {
+		needsApproval = false
+	}
 
 	return &ValidationResult{
 		Allowed:       true,

@@ -1,7 +1,7 @@
 .PHONY: build run install test clean fmt lint
 
-BINARY_NAME=olloco
-MAIN_PATH=cmd/olloco/main.go
+BINARY_NAME=termu
+MAIN_PATH=cmd/termu/main.go
 
 build:
 	go build -o $(BINARY_NAME) $(MAIN_PATH)
@@ -35,11 +35,6 @@ chat: build
 sandbox: build
 	./$(BINARY_NAME) --sandbox chat
 
-yolo: build
-	@echo "⚠️  ⚠️  ⚠️  WARNING: YOLO MODE ⚠️  ⚠️  ⚠️"
-	@echo "All security checks will be DISABLED!"
-	./$(BINARY_NAME) --yolo chat
-
 install-tools: build
 	./$(BINARY_NAME) install-tools
 
@@ -55,8 +50,4 @@ help:
 	@echo "  deps          - Download dependencies"
 	@echo "  chat          - Build and run chat mode"
 	@echo "  sandbox       - Build and run in sandbox mode"
-	@echo "  yolo          - ⚠️  Build and run in YOLO mode (NO SECURITY!)"
-	@echo "  install-tools - Install modern CLI tools (fd, rg, bat, etc.)"
-
-
-
+	@echo "  install-tools - Install cross-platform CLI tools"

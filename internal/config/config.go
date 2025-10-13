@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yourusername/olloco/internal/tools"
+	"github.com/niradler/termu/internal/tools"
 	"gopkg.in/yaml.v3"
 )
 
@@ -30,7 +30,6 @@ type SecurityConfig struct {
 	BlockedPatterns   []string `yaml:"blocked_patterns"`
 	SandboxMode       bool     `yaml:"sandbox_mode"`
 	AlwaysApprove     bool     `yaml:"always_approve"`
-	YoloMode          bool     `yaml:"yolo_mode"`
 }
 
 type ToolsConfig struct {
@@ -66,7 +65,6 @@ func DefaultConfig() *Config {
 			},
 			SandboxMode:   false,
 			AlwaysApprove: false,
-			YoloMode:      false,
 		},
 		Tools: ToolsConfig{
 			AutoInstall:  false,
@@ -74,7 +72,7 @@ func DefaultConfig() *Config {
 		},
 		Logging: LoggingConfig{
 			Level: "info",
-			File:  "~/.olloco/logs/olloco.log",
+			File:  "~/.termu/logs/termu.log",
 		},
 	}
 }
@@ -103,15 +101,15 @@ func Load(path string) (*Config, error) {
 
 func findConfigFile() string {
 	candidates := []string{
-		".olloco.yaml",
-		".olloco.yml",
+		".termu.yaml",
+		".termu.yml",
 	}
 
 	home, _ := os.UserHomeDir()
 	if home != "" {
 		candidates = append(candidates,
-			filepath.Join(home, ".olloco.yaml"),
-			filepath.Join(home, ".config", "olloco", "config.yaml"),
+			filepath.Join(home, ".termu.yaml"),
+			filepath.Join(home, ".config", "termu", "config.yaml"),
 		)
 	}
 

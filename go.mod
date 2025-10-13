@@ -1,4 +1,4 @@
-module github.com/yourusername/olloco
+module github.com/niradler/termu
 
 go 1.24.1
 

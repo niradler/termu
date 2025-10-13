@@ -6,52 +6,49 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/niradler/termu/internal/config"
+	"github.com/niradler/termu/internal/tools"
+	"github.com/niradler/termu/internal/tui"
 	"github.com/spf13/cobra"
-	"github.com/yourusername/olloco/internal/config"
-	"github.com/yourusername/olloco/internal/tools"
-	"github.com/yourusername/olloco/internal/tui"
 )
 
 var (
 	configFile  string
 	sandboxMode bool
-	yoloMode    bool
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "olloco [command]",
-	Short: "Olloco - Secure AI Shell Assistant",
-	Long: `Olloco is an intelligent CLI agent that combines the power of local LLMs
-with secure shell execution capabilities.`,
-	Version: "0.1.0",
+	Use:     "termu [command]",
+	Short:   "termu - Your Terminal Sidekick",
+	Long:    `termu is a terminal chat agent that helps you accomplish tasks using shell commands.`,
+	Version: "0.2.0",
 }
 
 var chatCmd = &cobra.Command{
 	Use:   "chat",
-	Short: "Start interactive chat mode",
-	Long:  `Start an interactive chat session with the AI assistant`,
+	Short: "Start interactive chat session",
+	Long:  `Start a chat session with termu in your current directory`,
 	RunE:  runChat,
 }
 
 var runCmd = &cobra.Command{
 	Use:   "run [prompt]",
-	Short: "Execute a one-shot command",
-	Long:  `Generate and execute a command from a natural language prompt`,
+	Short: "Execute a quick command",
+	Long:  `Generate and execute a command from natural language`,
 	Args:  cobra.ExactArgs(1),
 	RunE:  runCommand,
 }
 
 var installToolsCmd = &cobra.Command{
 	Use:   "install-tools",
-	Short: "Install modern CLI tools",
-	Long:  `Install all recommended modern CLI tools (fd, ripgrep, bat, sd, xsv, jaq, yq, dua, eza)`,
+	Short: "Install cross-platform CLI tools",
+	Long:  `Install termu's favorite cross-platform CLI tools`,
 	RunE:  installTools,
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&configFile, "config", ".olloco.yaml", "config file (default is .olloco.yaml)")
-	rootCmd.PersistentFlags().BoolVar(&sandboxMode, "sandbox", false, "run in sandbox mode (dry-run)")
-	rootCmd.PersistentFlags().BoolVar(&yoloMode, "yolo", false, "⚠️  YOLO mode: skip ALL security checks (DANGEROUS!)")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", ".termu.yaml", "config file")
+	rootCmd.PersistentFlags().BoolVar(&sandboxMode, "sandbox", false, "sandbox mode (dry-run)")
 
 	rootCmd.AddCommand(chatCmd)
 	rootCmd.AddCommand(runCmd)
@@ -59,7 +56,6 @@ func init() {
 }
 
 func runChat(cmd *cobra.Command, args []string) error {
-
 	cfg, err := config.Load(configFile)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -67,15 +63,6 @@ func runChat(cmd *cobra.Command, args []string) error {
 
 	if sandboxMode || cfg.Security.SandboxMode {
 		sandboxMode = true
-	}
-
-	if yoloMode || cfg.Security.YoloMode {
-		cfg.Security.YoloMode = true
-		fmt.Println("⚠️  ⚠️  ⚠️  WARNING: YOLO MODE ENABLED ⚠️  ⚠️  ⚠️")
-		fmt.Println("All security checks are DISABLED!")
-		fmt.Println("The AI can execute ANY command without validation.")
-		fmt.Println("Use at your own risk!")
-		fmt.Println()
 	}
 
 	ctx := context.Background()
@@ -91,7 +78,7 @@ func runChat(cmd *cobra.Command, args []string) error {
 	)
 
 	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("failed to start TUI: %w", err)
+		return fmt.Errorf("failed to start chat: %w", err)
 	}
 
 	return nil
@@ -107,9 +94,8 @@ func runCommand(cmd *cobra.Command, args []string) error {
 		sandboxMode = true
 	}
 
-	_ = context.Background()
-
 	fmt.Printf("Processing: %s\n", args[0])
+	fmt.Println("Quick run mode coming soon. Use 'termu chat' for now.")
 
 	return nil
 }

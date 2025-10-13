@@ -1,41 +1,41 @@
-# Olloco - Secure Shell AI Agent
+# termu - Your Terminal Sidekick
 
-A production-ready CLI AI agent powered by Genkit (Go) and local Ollama models, designed to execute shell commands safely with built-in security features and optimized tooling.
+termu is a terminal chat agent that helps you accomplish tasks using shell commands. Have conversations with termu, and it will assist you through intelligent command execution - all while keeping you in control.
 
 ## Overview
 
-Olloco is an intelligent CLI agent that combines the power of local LLMs (via Ollama) with secure shell execution capabilities. It provides a safe environment for AI-assisted command-line operations through whitelisting, approval systems, and restricted folder access.
+termu is your terminal sidekick - a conversational AI agent that understands what you want to accomplish and uses shell commands to help you get there. Powered by local LLMs (via Ollama), termu favors modern cross-platform CLI tools to be effective, while being capable of running any shell command in your current directory context. Every command requires your approval, but once approved in a session, similar commands flow smoothly without repeated confirmations.
 
 ## Features
 
-### 🤖 AI-Powered Command Execution
+### 💬 Conversational AI Agent
 
-- Integration with Ollama (default: Qwen3 model)
-- Context-aware command suggestions
-- Multi-turn conversations with tool calling
-- Smart command composition using optimized tools
+- Natural language interactions - just tell termu what you need
+- Multi-turn conversations with context awareness
+- Session-based command approval (approve once per session)
+- Runs in your current working directory context
+- Powered by Ollama (default: Qwen3 model)
 
-### 🎨 Beautiful Terminal UI
+### 💬 Chat-First Experience
 
-- Rich interactive mode powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea)
-- Markdown rendering with [Glow](https://github.com/charmbracelet/glow)
-- Syntax-highlighted command preview before execution
-- Real-time streaming output with proper formatting
-- Split-pane view: AI reasoning + command execution
-- Conversation history with scrollback
-- Keyboard shortcuts for efficient workflow
+- Rich interactive chat mode powered by [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+- Markdown-formatted responses with [Glow](https://github.com/charmbracelet/glow)
+- Command preview before execution with syntax highlighting
+- Session-based conversation history
+- Split-pane interface: chat on left, execution on right
+- Approve/reject commands with simple keyboard shortcuts
 
-### 🔒 Security First
+### 🔒 Safe Command Execution
 
-- **Command Whitelist**: Only approved commands can execute
-- **Folder Restrictions**: Limit access to specific directories
-- **Approval System**: Prompt for confirmation on risky operations
-- **Destructive Action Detection**: Prevents dangerous commands (rm -rf, format, etc.)
-- **Sandbox Mode**: Test agent behavior without executing commands
+- **Session-Based Approval**: Approve/reject commands before execution; approvals persist for the entire session
+- **Current Directory Context**: All commands run in the folder where termu was launched
+- **Command Whitelist**: Control which commands termu can use
+- **Destructive Action Guard**: Prevents dangerous operations
+- **Sandbox Mode**: Test behavior without actually executing commands
 
-### ⚡ Optimized Tooling
+### ⚡ Smart Tool Selection
 
-Olloco auto-detects and encourages the use of modern, fast command-line tools:
+termu favors modern, cross-platform CLI tools to accomplish tasks efficiently. You don't need to know how to use them - termu handles that:
 
 | Tool                                             | Purpose           | Why It's Better                          |
 | ------------------------------------------------ | ----------------- | ---------------------------------------- |
@@ -67,7 +67,7 @@ Olloco auto-detects and encourages the use of modern, fast command-line tools:
 │                    Genkit Agent                             │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  Ollama (Qwen3 Model)                              │    │
-│  │  - Context understanding                           │    │
+│  │  - Conversation understanding                      │    │
 │  │  - Tool selection                                  │    │
 │  │  - Command generation                              │    │
 │  └────────────────────────────────────────────────────┘    │
@@ -85,14 +85,13 @@ Olloco auto-detects and encourages the use of modern, fast command-line tools:
                   ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  Approval System                            │
-│           (Interactive confirmation for                     │
-│            high-risk operations)                            │
+│     (Session-based: approve once, reuse for session)       │
 └─────────────────┬───────────────────────────────────────────┘
                   │
                   ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                  Shell Executor                             │
-│        (Cross-platform command execution)                   │
+│   (Runs in current directory - cwd where termu starts)     │
 └─────────────────┬───────────────────────────────────────────┘
                   │
                   ▼
@@ -112,23 +111,23 @@ Olloco auto-detects and encourages the use of modern, fast command-line tools:
    ollama pull qwen3
    ```
 
-### Install Olloco
+### Install termu
 
 ```bash
-go install github.com/yourusername/olloco/cmd/olloco@latest
+go install github.com/niradler/termu/cmd/termu@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/yourusername/olloco.git
-cd olloco
-go build -o olloco cmd/olloco/main.go
+git clone https://github.com/niradler/termu.git
+cd termu
+go build -o termu cmd/termu/main.go
 ```
 
-### Install Recommended Tools
+### Install Favorite Cross-Platform Tools
 
-Olloco works with standard commands but is supercharged with these tools:
+termu works with standard commands but is supercharged with these modern tools. The built-in installer can help you set them up:
 
 **macOS (Homebrew):**
 
@@ -152,7 +151,7 @@ cargo install xsv jaq
 
 ## Configuration
 
-Create `.olloco.yaml` in your home directory or project root:
+Create `.termu.yaml` in your home directory or project root:
 
 ```yaml
 # AI Model Configuration
@@ -237,249 +236,115 @@ tools:
 # Logging
 logging:
   level: info
-  file: ~/.olloco/logs/olloco.log
+  file: ~/.termu/logs/termu.log
 ```
 
 ## Usage
 
-### Basic Command
+### Start a Chat Session
 
 ```bash
-olloco "find all Python files modified in the last week"
+termu chat
 ```
 
-### Interactive Mode
+This starts an interactive session where you can have a conversation with termu. Tell it what you want to accomplish, and it will suggest commands to help.
 
-```bash
-olloco chat
-```
+**Chat Features:**
 
-**Interactive Mode Features:**
-
+- 💬 Natural conversation - just describe what you want
 - 🎨 Beautiful split-pane interface
-- 📝 Markdown-formatted AI responses
-- 👁️ Real-time command preview
-- ✅ Approve/reject commands with keyboard shortcuts
-- 📜 Scrollable conversation history
-- 🎯 Syntax highlighting for commands and output
+- 📝 Markdown-formatted responses
+- ✅ Approve/reject commands before execution
+- 🔄 Session-based approval - approve once, reuse for similar commands
+- 📂 Commands run in your current working directory
+- 📜 Full conversation history within the session
 
 **Keyboard Shortcuts:**
 
 - `Enter` - Send message / Approve command
-- `Ctrl+C` - Cancel current operation
-- `Ctrl+D` - Exit interactive mode
-- `↑/↓` - Navigate history
-- `Tab` - Autocomplete
 - `Esc` - Reject command
+- `Ctrl+C` - Cancel operation
+- `Ctrl+D` - Exit session
+- `↑/↓` - Navigate history
 - `Ctrl+L` - Clear screen
+
+### Quick Command
+
+```bash
+termu "find all Python files modified in the last week"
+```
 
 ### Sandbox Mode (Safe Testing)
 
-```bash
-olloco --sandbox "remove all .log files older than 30 days"
-# Shows what would be executed without running it
-```
-
-### ⚠️ YOLO Mode (DANGEROUS!)
+Test what termu would do without actually executing commands:
 
 ```bash
-olloco --yolo chat
-# ⚠️  Disables ALL security checks - use at your own risk!
-# See YOLO_MODE.md for full details
+termu --sandbox chat
 ```
 
 ### Custom Config
 
 ```bash
-olloco --config ./custom-config.yaml "analyze disk usage"
+termu --config ./custom-config.yaml chat
 ```
 
 ## How It Works
 
-1. **User Input**: You describe what you want to accomplish
-2. **AI Processing**: Qwen3 (via Ollama) understands the request
-3. **Tool Selection**: Agent chooses optimal tools (prefers modern tools)
-4. **Command Generation**: Creates the appropriate command
-5. **Security Check**: Validates against whitelist and restrictions
-6. **Approval** (if needed): Prompts for confirmation
-7. **Execution**: Runs the command safely
-8. **Result**: Returns output and can iterate if needed
+1. **Start a Session**: Launch `termu chat` in any directory
+2. **Have a Conversation**: Tell termu what you want to accomplish in natural language
+3. **AI Understanding**: Local LLM (via Ollama) understands your request
+4. **Smart Tool Selection**: termu chooses the best tools for the job (favors modern cross-platform tools)
+5. **Command Preview**: See exactly what command will run
+6. **Your Approval**: Approve or reject the command; approvals are remembered for the session
+7. **Execution in Context**: Command runs in your current working directory
+8. **Continue the Conversation**: Discuss results, refine, or move to the next task
 
-## Tool Documentation for AI
+## Sessions & Command Approval
 
-The agent is pre-trained with comprehensive documentation for all supported tools:
+termu uses a session-based approval system:
 
-### Search & Replace (sd)
+- **First Time**: When termu wants to run a command, you approve or reject it
+- **Within Session**: Once approved, similar commands in the same session don't require re-approval
+- **Session End**: When you exit termu, approval history is cleared
+- **New Session**: Fresh start with new approval requirements
 
-```bash
-# Replace text in files
-sd 'old_text' 'new_text' file.txt
-
-# Replace in multiple files
-fd -e js | xargs sd 'var ' 'const '
-
-# Preview changes
-sd -p 'old' 'new' file.txt
-```
-
-### File Finding (fd)
-
-```bash
-# Find by name
-fd pattern
-
-# Find by extension
-fd -e py
-
-# Find and execute
-fd -e log -x rm {}
-
-# Find modified in last 7 days
-fd --changed-within 7d
-```
-
-### Content Search (ripgrep)
-
-```bash
-# Basic search
-rg "pattern"
-
-# Search specific file types
-rg -t py "import"
-
-# Show context
-rg -C 3 "error"
-
-# Case insensitive
-rg -i "pattern"
-```
-
-### File Preview (bat)
-
-```bash
-# Show file with syntax highlighting
-bat file.py
-
-# Show with line numbers
-bat -n file.py
-
-# Show specific range
-bat -r 10:20 file.py
-```
-
-### CSV Toolkit (xsv)
-
-```bash
-# Show CSV statistics
-xsv stats data.csv
-
-# Select columns
-xsv select name,age data.csv
-
-# Search CSV
-xsv search -s name "John" data.csv
-
-# Sort CSV
-xsv sort -s age data.csv
-```
-
-### JSON Processing (jaq)
-
-```bash
-# Parse JSON
-jaq '.' data.json
-
-# Extract field
-jaq '.items[] | .name' data.json
-
-# Filter
-jaq '.items[] | select(.price > 100)' data.json
-```
-
-### YAML/JSON (yq)
-
-```bash
-# Read YAML
-yq '.key' config.yaml
-
-# Convert YAML to JSON
-yq -o json config.yaml
-
-# Update value
-yq '.key = "new_value"' -i config.yaml
-```
-
-### Disk Usage (dua)
-
-```bash
-# Interactive mode
-dua i
-
-# Show top directories
-dua aggregate
-
-# Show directory size
-dua /path/to/dir
-```
-
-### Directory Listing (eza)
-
-```bash
-# List with details
-eza -l
-
-# Show tree
-eza --tree
-
-# Show with Git status
-eza --git -l
-
-# Sort by size
-eza -l --sort size
-```
+This gives you control while keeping the conversation flowing naturally.
 
 ## Security Best Practices
 
-1. **Start Restrictive**: Begin with a narrow whitelist and expand as needed
-2. **Use Allowed Folders**: Restrict operations to specific directories
-3. **Enable Approvals**: Set `always_approve: true` for sensitive environments
-4. **Test in Sandbox**: Use `--sandbox` mode to validate agent behavior
-5. **Review Logs**: Regularly check logs for unexpected behavior
-6. **Keep Tools Updated**: Update CLI tools for security patches
+1. **Review Before Approving**: Always check the command preview
+2. **Session Awareness**: Remember that approvals persist throughout your session
+3. **Use Allowed Folders**: Restrict operations to specific directories in config
+4. **Test in Sandbox**: Use `--sandbox` mode to see what termu would do
+5. **Review Logs**: Check logs for unexpected behavior
 
-## Examples
+## Example Conversations
 
-### Safe File Management
+Here are some examples of what you can ask termu:
 
-```bash
-olloco "find duplicate files by name in ./downloads"
-olloco "show me the largest files taking up space"
-olloco "organize photos by date into folders"
-```
+**File Management**
 
-### Code Analysis
+- "find duplicate files by name in ./downloads"
+- "show me the largest files taking up space"
+- "organize photos by date into folders"
 
-```bash
-olloco "find all TODO comments in TypeScript files"
-olloco "count lines of code by language"
-olloco "show files that haven't been modified in 6 months"
-```
+**Code Analysis**
 
-### Data Processing
+- "find all TODO comments in TypeScript files"
+- "count lines of code by language"
+- "show files that haven't been modified in 6 months"
 
-```bash
-olloco "convert all YAML configs to JSON"
-olloco "find the most common error in log files"
-olloco "merge these three CSV files and remove duplicates"
-```
+**Data Processing**
 
-### System Maintenance
+- "convert all YAML configs to JSON"
+- "find the most common error in log files"
+- "merge these CSV files and remove duplicates"
 
-```bash
-olloco "analyze which directories use the most disk space"
-olloco "find and preview log files from today"
-olloco "search for files containing API keys or passwords"
-```
+**System Maintenance**
+
+- "analyze which directories use the most disk space"
+- "find and preview log files from today"
+- "search for files containing sensitive information"
 
 ## Troubleshooting
 
@@ -498,7 +363,7 @@ curl http://127.0.0.1:11434/api/tags
 
 ### Command Not Whitelisted
 
-Add the command to your `.olloco.yaml`:
+Add the command to your `.termu.yaml`:
 
 ```yaml
 security:
@@ -508,7 +373,7 @@ security:
 
 ### Tool Not Found
 
-Install missing tools or disable `prefer_modern`:
+Use the built-in installer or install manually. You can also disable modern tool preference:
 
 ```yaml
 tools:
@@ -520,13 +385,14 @@ tools:
 ### Project Structure
 
 ```
-olloco/
-├── cmd/olloco/          # CLI entry point
+termu/
+├── cmd/termu/           # CLI entry point
 ├── internal/
 │   ├── agent/           # Genkit agent implementation
 │   ├── security/        # Security validators and approvals
-│   ├── shell/           # Shell execution
-│   ├── tools/           # Tool management and docs
+│   ├── shell/           # Shell execution in cwd context
+│   ├── tools/           # Tool management and installer
+│   ├── tui/             # Interactive chat interface
 │   └── config/          # Configuration handling
 ├── go.mod
 └── README.md
@@ -541,19 +407,15 @@ go test ./...
 ### Building
 
 ```bash
-go build -o olloco cmd/olloco/main.go
+go build -o termu cmd/termu/main.go
 ```
 
 ## Roadmap
 
-- [ ] Support for additional models (Llama 3, Mistral, etc.)
-- [ ] Plugin system for custom tools
-- [ ] Web UI for monitoring agent activity
-- [ ] Multi-agent collaboration
-- [ ] Cloud-hosted Ollama support
-- [ ] Windows-specific command validation
-- [ ] Tool installation automation
-- [ ] Learning mode (agent improves from corrections)
+- [ ] Enhanced conversation memory across sessions
+- [ ] Support for additional models providers
+- [ ] MCP Servers support
+- [ ] Multi-session management
 
 ## Contributing
 
@@ -579,7 +441,7 @@ Built with:
 - [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Terminal styling
 - [Glow](https://github.com/charmbracelet/glow) - Markdown rendering
 - [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
-- Amazing Rust/Go CLI tools that make this agent powerful
+- Amazing Rust/Go CLI tools that make termu powerful
 
 ## Security Disclosure
 
