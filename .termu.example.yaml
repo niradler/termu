@@ -1,0 +1,75 @@
+model:
+  provider: ollama
+  name: qwen3
+  server: http://127.0.0.1:11434
+  timeout: 60
+
+security:
+  allowed_commands:
+    - sd
+    - fd
+    - rg
+    - bat
+    - xsv
+    - jaq
+    - yq
+    - dua
+    - eza
+    - ls
+    - cat
+    - grep
+    - find
+    - echo
+    - pwd
+    - cd
+    - git
+    - curl
+    - wget
+    - cp
+    - mv
+    - mkdir
+    - touch
+
+  restricted_folders:
+    - /System
+    - /Windows
+    - /etc/passwd
+    - /etc/shadow
+    - ~/.ssh
+    - ~/.aws
+
+  allowed_folders:
+    - ./
+    - ~/Documents
+    - ~/Projects
+
+  high_risk_commands:
+    - rm
+    - mv
+    - chmod
+    - chown
+    - sudo
+
+  blocked_patterns:
+    - "rm -rf /"
+    - "rm -rf *"
+    - ":(){ :|:& };:"
+    - "mkfs"
+    - "dd if="
+    - "> /dev/sda"
+
+  sandbox_mode: false
+  always_approve: false
+  
+  # ⚠️  YOLO mode: Skip ALL security checks (EXTREMELY DANGEROUS!)
+  # When enabled, the AI can execute ANY command without validation
+  # Only use if you fully trust your AI and understand the risks
+  yolo_mode: false
+
+tools:
+  auto_install: false
+  prefer_modern: true
+
+logging:
+  level: info
+  file: ~/.olloco/logs/olloco.log
