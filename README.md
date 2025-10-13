@@ -401,7 +401,3 @@ Built with:
 - [Glow](https://github.com/charmbracelet/glow) - Markdown rendering
 - [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
 - Amazing Rust/Go CLI tools that make termu powerful
-
-## Security Disclosure
-
-Found a security issue? Please email security@yourdomain.com instead of creating a public issue.
