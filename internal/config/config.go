@@ -30,6 +30,7 @@ type SecurityConfig struct {
 	BlockedPatterns   []string `yaml:"blocked_patterns"`
 	SandboxMode       bool     `yaml:"sandbox_mode"`
 	AlwaysApprove     bool     `yaml:"always_approve"`
+	MaxToolIterations int      `yaml:"max_tool_iterations"`
 }
 
 type ToolsConfig struct {
@@ -63,8 +64,9 @@ func DefaultConfig() *Config {
 			BlockedPatterns: []string{
 				"rm -rf /", "rm -rf *", ":(){ :|:& };:", "mkfs", "dd if=",
 			},
-			SandboxMode:   false,
-			AlwaysApprove: false,
+			SandboxMode:       false,
+			AlwaysApprove:     false,
+			MaxToolIterations: 5,
 		},
 		Tools: ToolsConfig{
 			AutoInstall:  false,

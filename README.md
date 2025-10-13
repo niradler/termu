@@ -49,57 +49,6 @@ termu favors modern, cross-platform CLI tools to accomplish tasks efficiently. Y
 | [dua](https://github.com/Byron/dua-cli)          | Disk analysis     | Interactive disk usage visualization     |
 | [eza](https://eza.rocks/)                        | Directory listing | Modern ls with colors and Git status     |
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         User Input                          │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Cobra CLI                              │
-│                    (Command Parser)                         │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Genkit Agent                             │
-│  ┌────────────────────────────────────────────────────┐    │
-│  │  Ollama (Qwen3 Model)                              │    │
-│  │  - Conversation understanding                      │    │
-│  │  - Tool selection                                  │    │
-│  │  - Command generation                              │    │
-│  └────────────────────────────────────────────────────┘    │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Security Layer                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐  │
-│  │  Whitelist   │  │   Folder     │  │   Destructive   │  │
-│  │  Validator   │  │  Restriction │  │   Action Guard  │  │
-│  └──────────────┘  └──────────────┘  └─────────────────┘  │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Approval System                            │
-│     (Session-based: approve once, reuse for session)       │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Shell Executor                             │
-│   (Runs in current directory - cwd where termu starts)     │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Output/Result                          │
-└─────────────────────────────────────────────────────────────┘
-```
-
 ## Installation
 
 ### Prerequisites
@@ -314,9 +263,6 @@ This gives you control while keeping the conversation flowing naturally.
 
 1. **Review Before Approving**: Always check the command preview
 2. **Session Awareness**: Remember that approvals persist throughout your session
-3. **Use Allowed Folders**: Restrict operations to specific directories in config
-4. **Test in Sandbox**: Use `--sandbox` mode to see what termu would do
-5. **Review Logs**: Check logs for unexpected behavior
 
 ## Example Conversations
 
@@ -369,15 +315,6 @@ Add the command to your `.termu.yaml`:
 security:
   allowed_commands:
     - your_command
-```
-
-### Tool Not Found
-
-Use the built-in installer or install manually. You can also disable modern tool preference:
-
-```yaml
-tools:
-  prefer_modern: false
 ```
 
 ## Development

@@ -65,7 +65,7 @@ func newOllamaProvider(ctx context.Context, cfg *config.Config) (*OllamaProvider
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				SystemRole: true,
-				Tools:      false,
+				Tools:      true,
 				Media:      false,
 			},
 		},

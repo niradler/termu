@@ -25,6 +25,7 @@ const (
 	StateThinking
 	StateApproval
 	StateExecuting
+	StateIterating
 )
 
 type Message struct {
@@ -33,32 +34,45 @@ type Message struct {
 }
 
 type Model struct {
-	ctx         context.Context
-	state       SessionState
-	textarea    textarea.Model
-	viewport    viewport.Model
-	messages    []Message
-	aiHistory   []ai.Message
-	currentCmd  string
-	width       int
-	height      int
-	sandboxMode bool
-	mdRenderer  *glamour.TermRenderer
-	agent       *agent.Agent
-	validator   *security.Validator
-	executor    *shell.Executor
-	workdir     string
+	ctx            context.Context
+	state          SessionState
+	textarea       textarea.Model
+	viewport       viewport.Model
+	messages       []Message
+	aiHistory      []ai.Message
+	currentCmd     string
+	currentInput   string
+	iterationCount int
+	maxIterations  int
+	retryCount     int
+	maxRetries     int
+	width          int
+	height         int
+	sandboxMode    bool
+	mdRenderer     *glamour.TermRenderer
+	agent          *agent.Agent
+	validator      *security.Validator
+	executor       *shell.Executor
+	workdir        string
 }
 
-type ExecutionCompleteMsg struct {
-	Output       string
-	Error        error
-	NewMessages  []Message
-	NewAIHistory []ai.Message
+type AgentResponseMsg struct {
+	Response *agent.Response
+	Error    error
+}
+
+type CommandExecutedMsg struct {
+	Command string
+	Output  string
+	Error   error
 }
 
 type ApprovalRequestMsg struct {
 	Command string
+}
+
+type IterationCompleteMsg struct {
+	FinalText string
 }
 
 func NewModel(ctx context.Context, cfg *config.Config, sandboxMode bool) (Model, error) {
@@ -90,20 +104,24 @@ func NewModel(ctx context.Context, cfg *config.Config, sandboxMode bool) (Model,
 	workdir, _ := os.Getwd()
 
 	return Model{
-		ctx:         ctx,
-		state:       StateInput,
-		textarea:    ta,
-		viewport:    vp,
-		messages:    []Message{},
-		aiHistory:   []ai.Message{},
-		width:       80,
-		height:      24,
-		sandboxMode: sandboxMode,
-		mdRenderer:  renderer,
-		agent:       ag,
-		validator:   security.New(cfg),
-		executor:    shell.New(workdir, sandboxMode),
-		workdir:     workdir,
+		ctx:            ctx,
+		state:          StateInput,
+		textarea:       ta,
+		viewport:       vp,
+		messages:       []Message{},
+		aiHistory:      []ai.Message{},
+		iterationCount: 0,
+		maxIterations:  cfg.Security.MaxToolIterations,
+		retryCount:     0,
+		maxRetries:     2,
+		width:          80,
+		height:         24,
+		sandboxMode:    sandboxMode,
+		mdRenderer:     renderer,
+		agent:          ag,
+		validator:      security.New(cfg),
+		executor:       shell.New(workdir, sandboxMode),
+		workdir:        workdir,
 	}, nil
 }
 
@@ -132,9 +150,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					Content: userInput,
 				})
 				m.textarea.Reset()
+				m.currentInput = userInput
+				m.iterationCount = 0
+				m.retryCount = 0
 				m.state = StateThinking
 				m.updateViewport()
-				return m, m.processUserInput(userInput)
+				return m, m.callAgent()
 			} else if m.state == StateApproval {
 				m.validator.ApproveCommand(m.currentCmd)
 				m.state = StateExecuting
@@ -166,28 +187,127 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.textarea.SetWidth(msg.Width - 4)
 		m.updateViewport()
 
-	case ApprovalRequestMsg:
-		m.currentCmd = msg.Command
-		m.state = StateApproval
-		m.updateViewport()
-
-	case ExecutionCompleteMsg:
-		m.messages = append(m.messages, msg.NewMessages...)
-		m.aiHistory = append(m.aiHistory, msg.NewAIHistory...)
-
+	case AgentResponseMsg:
 		if msg.Error != nil {
 			m.messages = append(m.messages, Message{
 				Role:    "error",
-				Content: fmt.Sprintf("Execution failed: %v", msg.Error),
+				Content: fmt.Sprintf("Agent error: %v", msg.Error),
 			})
-		} else if msg.Output != "" {
-			m.messages = append(m.messages, Message{
-				Role:    "output",
-				Content: msg.Output,
-			})
+			m.state = StateInput
+			m.updateViewport()
+			return m, nil
 		}
-		m.state = StateInput
-		m.currentCmd = ""
+
+		m.messages = append(m.messages, Message{
+			Role:    "assistant",
+			Content: msg.Response.Text,
+		})
+
+		m.aiHistory = append(m.aiHistory, ai.Message{
+			Role:    ai.RoleModel,
+			Content: []*ai.Part{ai.NewTextPart(msg.Response.Text)},
+		})
+
+		if msg.Response.Command == "" {
+			m.state = StateInput
+			m.updateViewport()
+			return m, nil
+		}
+
+		m.messages = append(m.messages, Message{
+			Role:    "command",
+			Content: msg.Response.Command,
+		})
+
+		validation := m.validator.Validate(msg.Response.Command, m.workdir)
+		if !validation.Allowed {
+			m.messages = append(m.messages, Message{
+				Role:    "error",
+				Content: fmt.Sprintf("Command blocked: %s", validation.Reason),
+			})
+			m.state = StateInput
+			m.updateViewport()
+			return m, nil
+		}
+
+		m.currentCmd = msg.Response.Command
+		m.retryCount = 0
+
+		if validation.NeedsApproval {
+			m.state = StateApproval
+			m.updateViewport()
+			return m, nil
+		}
+
+		m.state = StateExecuting
+		m.updateViewport()
+		return m, m.executeCommand()
+
+	case CommandExecutedMsg:
+		if msg.Error != nil {
+			m.messages = append(m.messages, Message{
+				Role:    "error",
+				Content: fmt.Sprintf("❌ Error: %v", msg.Error),
+			})
+
+			if m.retryCount < m.maxRetries {
+				m.retryCount++
+				m.messages = append(m.messages, Message{
+					Role:    "system",
+					Content: fmt.Sprintf("🔄 Retry %d/%d - letting termu try to fix it...", m.retryCount, m.maxRetries),
+				})
+
+				errorFeedback := fmt.Sprintf("Command failed: %s\n\nError:\n%s\n\nPlease try a different approach.", msg.Command, msg.Output)
+				m.aiHistory = append(m.aiHistory, ai.Message{
+					Role:    ai.RoleUser,
+					Content: []*ai.Part{ai.NewTextPart(errorFeedback)},
+				})
+
+				m.state = StateIterating
+				m.updateViewport()
+				return m, m.callAgent()
+			}
+
+			m.messages = append(m.messages, Message{
+				Role:    "system",
+				Content: fmt.Sprintf("❌ Failed after %d retries. Task incomplete.", m.maxRetries),
+			})
+			m.state = StateInput
+			m.updateViewport()
+			return m, nil
+		}
+
+		m.iterationCount++
+		m.retryCount = 0
+
+		m.messages = append(m.messages, Message{
+			Role:    "output",
+			Content: msg.Output,
+		})
+
+		toolOutput := fmt.Sprintf("Command executed successfully: %s\n\nOutput:\n%s", msg.Command, msg.Output)
+		m.aiHistory = append(m.aiHistory, ai.Message{
+			Role:    ai.RoleUser,
+			Content: []*ai.Part{ai.NewTextPart(toolOutput)},
+		})
+
+		if m.iterationCount >= m.maxIterations {
+			m.messages = append(m.messages, Message{
+				Role:    "system",
+				Content: fmt.Sprintf("⚠️ Max iterations (%d) reached", m.maxIterations),
+			})
+			m.state = StateInput
+			m.updateViewport()
+			return m, nil
+		}
+
+		m.state = StateIterating
+		m.updateViewport()
+		return m, m.callAgent()
+
+	case ApprovalRequestMsg:
+		m.currentCmd = msg.Command
+		m.state = StateApproval
 		m.updateViewport()
 	}
 
@@ -217,11 +337,22 @@ func (m Model) View() string {
 		b.WriteString("\n")
 		b.WriteString(m.textarea.View())
 	} else if m.state == StateThinking {
-		b.WriteString(InfoStyle.Render("🤔 AI is thinking..."))
+		status := "🤔 termu is thinking..."
+		if m.iterationCount > 0 {
+			status = fmt.Sprintf("🤔 termu is thinking... [%d/%d]", m.iterationCount+1, m.maxIterations)
+		}
+		b.WriteString(InfoStyle.Render(status))
+	} else if m.state == StateIterating {
+		b.WriteString(InfoStyle.Render(
+			fmt.Sprintf("🔄 termu analyzing results... [%d/%d]", m.iterationCount+1, m.maxIterations)))
 	} else if m.state == StateApproval {
 		b.WriteString(m.renderApproval())
 	} else if m.state == StateExecuting {
-		b.WriteString(InfoStyle.Render("⚡ Executing command..."))
+		status := "⚡ Executing command..."
+		if m.iterationCount > 0 {
+			status = fmt.Sprintf("⚡ Executing... [%d/%d]", m.iterationCount, m.maxIterations)
+		}
+		b.WriteString(InfoStyle.Render(status))
 	}
 
 	b.WriteString("\n\n")
@@ -240,7 +371,12 @@ func (m Model) renderHeader() string {
 		mode = StatusBarStyle.Render(" SESSION ")
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, title, " ", mode)
+	var status string
+	if m.state == StateIterating || m.state == StateExecuting {
+		status = HelpStyle.Render(fmt.Sprintf(" [%d/%d]", m.iterationCount, m.maxIterations))
+	}
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, title, " ", mode, status)
 }
 
 func (m Model) renderFooter() string {
@@ -312,63 +448,12 @@ func (m *Model) updateViewport() {
 	m.viewport.GotoBottom()
 }
 
-func (m Model) processUserInput(input string) tea.Cmd {
+func (m Model) callAgent() tea.Cmd {
 	return func() tea.Msg {
-		resp, err := m.agent.GenerateCommand(m.ctx, input, m.aiHistory)
-		if err != nil {
-			return ExecutionCompleteMsg{
-				Error: fmt.Errorf("failed to generate command: %w", err),
-			}
-		}
-
-		newMessages := []Message{
-			{Role: "assistant", Content: resp.Text},
-		}
-
-		newAIHistory := []ai.Message{
-			{Role: ai.RoleUser, Content: []*ai.Part{ai.NewTextPart(input)}},
-			{Role: ai.RoleModel, Content: []*ai.Part{ai.NewTextPart(resp.Text)}},
-		}
-
-		if resp.Command == "" {
-			return ExecutionCompleteMsg{
-				Output:       "No command was generated. Try rephrasing your request.",
-				NewMessages:  newMessages,
-				NewAIHistory: newAIHistory,
-			}
-		}
-
-		newMessages = append(newMessages, Message{
-			Role:    "command",
-			Content: resp.Command,
-		})
-
-		validation := m.validator.Validate(resp.Command, m.workdir)
-		if !validation.Allowed {
-			return ExecutionCompleteMsg{
-				Error:        fmt.Errorf("command blocked: %s", validation.Reason),
-				NewMessages:  newMessages,
-				NewAIHistory: newAIHistory,
-			}
-		}
-
-		if validation.NeedsApproval {
-			return ApprovalRequestMsg{Command: resp.Command}
-		}
-
-		result, err := m.executor.Execute(m.ctx, resp.Command)
-		if err != nil {
-			return ExecutionCompleteMsg{
-				Error:        fmt.Errorf("execution failed: %w", err),
-				NewMessages:  newMessages,
-				NewAIHistory: newAIHistory,
-			}
-		}
-
-		return ExecutionCompleteMsg{
-			Output:       result.Output,
-			NewMessages:  newMessages,
-			NewAIHistory: newAIHistory,
+		resp, err := m.agent.GenerateCommand(m.ctx, m.currentInput, m.aiHistory)
+		return AgentResponseMsg{
+			Response: resp,
+			Error:    err,
 		}
 	}
 }
@@ -377,21 +462,22 @@ func (m Model) executeCommand() tea.Cmd {
 	return func() tea.Msg {
 		result, err := m.executor.Execute(m.ctx, m.currentCmd)
 
+		var cmdErr error
 		if err != nil {
-			return ExecutionCompleteMsg{
-				Error: fmt.Errorf("execution failed: %w", err),
-			}
+			cmdErr = fmt.Errorf("execution failed: %w", err)
+		} else if result.ExitCode != 0 {
+			cmdErr = fmt.Errorf("command exited with code %d", result.ExitCode)
 		}
 
-		if result.ExitCode != 0 {
-			return ExecutionCompleteMsg{
-				Output: result.Output,
-				Error:  fmt.Errorf("command exited with code %d: %s", result.ExitCode, result.Error),
-			}
+		output := result.Output
+		if result.Error != "" && cmdErr != nil {
+			output = result.Output + "\nError: " + result.Error
 		}
 
-		return ExecutionCompleteMsg{
-			Output: result.Output,
+		return CommandExecutedMsg{
+			Command: m.currentCmd,
+			Output:  output,
+			Error:   cmdErr,
 		}
 	}
 }
