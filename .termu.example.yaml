@@ -1,8 +1,15 @@
 model:
   provider: ollama
-  name: qwen3
+  name: qwen3:latest
   server: http://127.0.0.1:11434
   timeout: 60
+# Optional settings for OpenAI-compatible servers
+# model:
+#   provider: "openai"           # Use "openai" for OpenAI-compatible servers
+#   name: "gpt-4o"                # Model name (depends on your LiteLLM configuration)
+#   api_key: "sk-..."           # Your API key (required)
+#   base_url: "http://localhost:4000/v1" # Base URL of your OpenAI-compatible server
+#   timeout: 60  
 
 security:
   allowed_commands:
@@ -57,18 +64,6 @@ security:
     - "mkfs"
     - "dd if="
     - "> /dev/sda"
-
-  sandbox_mode: false
-  always_approve: false
-  
-  # ⚠️  YOLO mode: Skip ALL security checks (EXTREMELY DANGEROUS!)
-  # When enabled, the AI can execute ANY command without validation
-  # Only use if you fully trust your AI and understand the risks
-  yolo_mode: false
-
-tools:
-  auto_install: false
-  prefer_modern: true
 
 logging:
   level: info

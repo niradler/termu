@@ -4,7 +4,7 @@ termu is a terminal chat agent that helps you accomplish tasks using shell comma
 
 ## Overview
 
-termu is your terminal sidekick - a conversational AI agent that understands what you want to accomplish and uses shell commands to help you get there. Powered by local LLMs (via Ollama), termu favors modern cross-platform CLI tools to be effective, while being capable of running any shell command in your current directory context. Every command requires your approval, but once approved in a session, similar commands flow smoothly without repeated confirmations.
+termu is your terminal sidekick - a conversational AI agent that understands what you want to accomplish and uses shell commands to help you get there. Powered by local LLMs (via Ollama) or OpenAI-compatible servers (like LiteLLM), termu favors modern cross-platform CLI tools to be effective, while being capable of running any shell command in your current directory context. Every command requires your approval, but once approved in a session, similar commands flow smoothly without repeated confirmations.
 
 ## Features
 
@@ -14,7 +14,7 @@ termu is your terminal sidekick - a conversational AI agent that understands wha
 - Multi-turn conversations with context awareness
 - Session-based command approval (approve once per session)
 - Runs in your current working directory context
-- Powered by Ollama (default: Qwen3 model)
+- Powered by Ollama (default: Qwen3 model) or OpenAI-compatible servers (LiteLLM, etc.)
 
 ### 💬 Chat-First Experience
 
@@ -127,10 +127,14 @@ Create `.termu.yaml` in your home directory or project root:
 ```yaml
 # AI Model Configuration
 model:
-  provider: ollama
-  name: qwen3
-  server: http://127.0.0.1:11434
-  timeout: 60
+  provider: ollama              # Options: "ollama" (default) or "openai" (for OpenAI-compatible servers)
+  name: qwen3                   # Model name
+  server: http://127.0.0.1:11434  # Ollama server address (for ollama provider)
+  timeout: 60                   # Request timeout in seconds
+
+  # For OpenAI-compatible servers (e.g., LiteLLM, custom OpenAI endpoints)
+  # api_key: "sk-1234"           # Your API key (required for openai provider)
+  # base_url: "http://localhost:4000/v1"  # Custom endpoint URL (required for openai provider)
 
 # Security Configuration
 security:
@@ -209,6 +213,35 @@ logging:
   level: info
   file: ~/.termu/logs/termu.log
 ```
+
+### Using OpenAI-Compatible Servers (LiteLLM, etc.)
+
+termu supports OpenAI-compatible servers like [LiteLLM](https://docs.litellm.ai/), allowing you to use various LLM providers through a unified API:
+
+```yaml
+model:
+  provider: "openai"                        # Use OpenAI-compatible provider
+  name: "gpt-4"                             # Model name (depends on your server config)
+  api_key: "sk-1234"                        # API key (required)
+  base_url: "http://localhost:4000/v1"      # Custom endpoint URL
+  timeout: 60
+```
+
+**Example: Running with LiteLLM**
+
+1. Start LiteLLM server:
+   ```bash
+   litellm --model gpt-4 --api_base http://localhost:4000
+   ```
+
+2. Configure `.termu.yaml` with the settings above
+
+3. Start termu:
+   ```bash
+   termu chat
+   ```
+
+See `.termu.openai.example.yaml` for a complete example configuration.
 
 ## Usage
 

@@ -47,8 +47,7 @@ var installToolsCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&configFile, "config", ".termu.yaml", "config file")
-	rootCmd.PersistentFlags().BoolVar(&sandboxMode, "sandbox", false, "sandbox mode (dry-run)")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file")
 
 	rootCmd.AddCommand(chatCmd)
 	rootCmd.AddCommand(runCmd)
@@ -61,12 +60,8 @@ func runChat(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	if sandboxMode || cfg.Security.SandboxMode {
-		sandboxMode = true
-	}
-
 	ctx := context.Background()
-	model, err := tui.NewModel(ctx, cfg, sandboxMode)
+	model, err := tui.NewModel(ctx, cfg, false)
 	if err != nil {
 		return fmt.Errorf("failed to create model: %w", err)
 	}
