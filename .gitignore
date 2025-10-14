@@ -40,3 +40,4 @@ logs/
 dist/
 bin/
 
+.termu.yaml
