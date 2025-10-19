@@ -64,6 +64,8 @@ termu uses [Genkit's tool calling feature](https://genkit.dev/docs/tool-calling/
 | `search_replace`  | Exact string search and replace   | Targeted edits, renaming, bug fixes, surgical code changes     |
 | `list_directory`  | List files and directories        | Exploring project structure, finding files (with recursion)    |
 | `execute_command` | Run shell commands in working dir | Searching (fd/rg), git operations, previews (bat/eza)          |
+| `read_clipboard`  | Read system clipboard content     | Accessing copied text, working with clipboard data             |
+| `write_clipboard` | Write content to system clipboard | Copying results, sharing data between applications             |
 
 **Benefits of Structured Tool Calling:**
 
@@ -130,10 +132,10 @@ Create `.termu.yaml` in your home directory or project root:
 ```yaml
 # AI Model Configuration
 model:
-  provider: ollama              # Options: "ollama" (default) or "openai" (for OpenAI-compatible servers)
-  name: qwen3                   # Model name
-  server: http://127.0.0.1:11434  # Ollama server address (for ollama provider)
-  timeout: 60                   # Request timeout in seconds
+  provider: ollama # Options: "ollama" (default) or "openai" (for OpenAI-compatible servers)
+  name: qwen3 # Model name
+  server: http://127.0.0.1:11434 # Ollama server address (for ollama provider)
+  timeout: 60 # Request timeout in seconds
 
   # For OpenAI-compatible servers (e.g., LiteLLM, custom OpenAI endpoints)
   # api_key: "sk-1234"           # Your API key (required for openai provider)
@@ -209,16 +211,17 @@ termu supports OpenAI-compatible servers like [LiteLLM](https://docs.litellm.ai/
 
 ```yaml
 model:
-  provider: "openai"                        # Use OpenAI-compatible provider
-  name: "gpt-4"                             # Model name (depends on your server config)
-  api_key: "sk-1234"                        # API key (required)
-  base_url: "http://localhost:4000/v1"      # Custom endpoint URL
+  provider: "openai" # Use OpenAI-compatible provider
+  name: "gpt-4" # Model name (depends on your server config)
+  api_key: "sk-1234" # API key (required)
+  base_url: "http://localhost:4000/v1" # Custom endpoint URL
   timeout: 60
 ```
 
 **Example: Running with LiteLLM**
 
 1. Start LiteLLM server:
+
    ```bash
    litellm --model gpt-4 --api_base http://localhost:4000
    ```

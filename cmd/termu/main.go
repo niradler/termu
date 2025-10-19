@@ -22,6 +22,7 @@ var rootCmd = &cobra.Command{
 	Short:   "termu - Your Terminal Sidekick",
 	Long:    `termu is a terminal chat agent that helps you accomplish tasks using shell commands.`,
 	Version: "0.2.0",
+	RunE:    runChat,
 }
 
 var chatCmd = &cobra.Command{
