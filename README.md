@@ -4,17 +4,19 @@ termu is a terminal chat agent that helps you accomplish tasks using shell comma
 
 ## Overview
 
-termu is your terminal sidekick - a conversational AI agent that understands what you want to accomplish and uses shell commands to help you get there. Powered by local LLMs (via Ollama), termu favors modern cross-platform CLI tools to be effective, while being capable of running any shell command in your current directory context. Every command requires your approval, but once approved in a session, similar commands flow smoothly without repeated confirmations.
+termu is your terminal sidekick - a conversational AI agent that understands what you want to accomplish and helps you get there. Powered by local LLMs (via Ollama) or OpenAI-compatible servers (like LiteLLM), termu can directly read and edit files, execute shell commands for exploration, and leverage modern cross-platform CLI tools - all while keeping you in control with session-based command approval.
 
 ## Features
 
-### 💬 Conversational AI Agent
+### 💬 Conversational AI Agent with Direct File Access
 
 - Natural language interactions - just tell termu what you need
+- Direct filesystem access through structured tool calling
+- Can read, write, and surgically edit files without shell commands
 - Multi-turn conversations with context awareness
 - Session-based command approval (approve once per session)
 - Runs in your current working directory context
-- Powered by Ollama (default: Qwen3 model)
+- Powered by Ollama (default: Qwen3 model) or OpenAI-compatible servers (LiteLLM, etc.)
 
 ### 💬 Chat-First Experience
 
@@ -51,25 +53,26 @@ termu favors modern, cross-platform CLI tools to accomplish tasks efficiently. Y
 
 ### 🛠️ Structured Tool Calling
 
-termu uses [Genkit's tool calling feature](https://genkit.dev/docs/tool-calling/?lang=go) for intelligent filesystem operations and command execution.
+termu uses [Genkit's tool calling feature](https://genkit.dev/docs/tool-calling/?lang=go) for intelligent filesystem operations and command execution. Instead of relying solely on shell commands, termu has direct access to structured tools for file manipulation and code editing.
 
 **Available Tools:**
 
-| Tool              | Purpose                     | When to Use                                  |
-| ----------------- | --------------------------- | -------------------------------------------- |
-| `read_file`       | Read complete file contents | Understanding code, checking implementations |
-| `write_file`      | Create or overwrite files   | Creating new files, major rewrites           |
-| `search_replace`  | Exact string replacements   | Targeted edits, renaming, bug fixes          |
-| `list_directory`  | List files and directories  | Exploring project structure                  |
-| `execute_command` | Run shell commands          | Searching (fd/rg), git operations, previews  |
+| Tool              | Purpose                           | When to Use                                                    |
+| ----------------- | --------------------------------- | -------------------------------------------------------------- |
+| `read_file`       | Read complete file contents       | Understanding code, checking implementations, reviewing files  |
+| `write_file`      | Create or completely overwrite    | Creating new files, major rewrites (overwrites entire content) |
+| `search_replace`  | Exact string search and replace   | Targeted edits, renaming, bug fixes, surgical code changes     |
+| `list_directory`  | List files and directories        | Exploring project structure, finding files (with recursion)    |
+| `execute_command` | Run shell commands in working dir | Searching (fd/rg), git operations, previews (bat/eza)          |
 
 **Benefits of Structured Tool Calling:**
 
+- **Direct file access**: Read and write files without shell command parsing
 - **Surgical edits**: Make precise changes with `search_replace` without rewriting entire files
-- **Syntax awareness**: Tools understand file structure and context
-- **Multi-step workflows**: Read → analyze → edit → verify in one interaction
-- **Reliable execution**: Structured interfaces eliminate command parsing errors
-- **Hybrid approach**: Combines direct file operations with shell commands for exploration
+- **Reliability**: Structured JSON interfaces eliminate command parsing ambiguity
+- **Multi-step workflows**: Read → analyze → edit → verify in one conversation
+- **Hybrid approach**: Direct file operations + shell commands for exploration
+- **Context awareness**: All operations run in your current working directory
 
 ## Installation
 
@@ -127,10 +130,14 @@ Create `.termu.yaml` in your home directory or project root:
 ```yaml
 # AI Model Configuration
 model:
-  provider: ollama
-  name: qwen3
-  server: http://127.0.0.1:11434
-  timeout: 60
+  provider: ollama              # Options: "ollama" (default) or "openai" (for OpenAI-compatible servers)
+  name: qwen3                   # Model name
+  server: http://127.0.0.1:11434  # Ollama server address (for ollama provider)
+  timeout: 60                   # Request timeout in seconds
+
+  # For OpenAI-compatible servers (e.g., LiteLLM, custom OpenAI endpoints)
+  # api_key: "sk-1234"           # Your API key (required for openai provider)
+  # base_url: "http://localhost:4000/v1"  # Custom endpoint URL (required for openai provider)
 
 # Security Configuration
 security:
@@ -190,25 +197,40 @@ security:
     - "dd if="
     - "> /dev/sda"
 
-  # Enable sandbox mode (dry-run, no actual execution)
-  sandbox_mode: false
-
-  # Require approval for all commands
-  always_approve: false
-
-# Tool Configuration
-tools:
-  # Auto-install missing tools
-  auto_install: false
-
-  # Prefer optimized tools over traditional ones
-  prefer_modern: true
-
 # Logging
 logging:
   level: info
   file: ~/.termu/logs/termu.log
 ```
+
+### Using OpenAI-Compatible Servers (LiteLLM, etc.)
+
+termu supports OpenAI-compatible servers like [LiteLLM](https://docs.litellm.ai/), allowing you to use various LLM providers through a unified API:
+
+```yaml
+model:
+  provider: "openai"                        # Use OpenAI-compatible provider
+  name: "gpt-4"                             # Model name (depends on your server config)
+  api_key: "sk-1234"                        # API key (required)
+  base_url: "http://localhost:4000/v1"      # Custom endpoint URL
+  timeout: 60
+```
+
+**Example: Running with LiteLLM**
+
+1. Start LiteLLM server:
+   ```bash
+   litellm --model gpt-4 --api_base http://localhost:4000
+   ```
+
+2. Configure `.termu.yaml` with the settings above
+
+3. Start termu:
+   ```bash
+   termu chat
+   ```
+
+See `.termu.openai.example.yaml` for a complete example configuration.
 
 ## Usage
 
@@ -245,14 +267,6 @@ This starts an interactive session where you can have a conversation with termu.
 termu "find all Python files modified in the last week"
 ```
 
-### Sandbox Mode (Safe Testing)
-
-Test what termu would do without actually executing commands:
-
-```bash
-termu --sandbox chat
-```
-
 ### Custom Config
 
 ```bash
@@ -263,11 +277,11 @@ termu --config ./custom-config.yaml chat
 
 1. **Start a Session**: Launch `termu chat` in any directory
 2. **Have a Conversation**: Tell termu what you want to accomplish in natural language
-3. **AI Understanding**: Local LLM (via Ollama) understands your request
-4. **Smart Tool Selection**: termu chooses the best tools for the job (favors modern cross-platform tools)
-5. **Command Preview**: See exactly what command will run
-6. **Your Approval**: Approve or reject the command; approvals are remembered for the session
-7. **Execution in Context**: Command runs in your current working directory
+3. **AI Understanding**: Local LLM (via Ollama) or OpenAI-compatible server understands your request
+4. **Smart Tool Selection**: termu chooses the best approach - direct file operations or shell commands
+5. **Preview & Approval**: See exactly what termu will do (read/edit files or run commands)
+6. **Your Control**: Approve or reject; approvals are remembered for the session
+7. **Execution in Context**: Operations run in your current working directory
 8. **Continue the Conversation**: Discuss results, refine, or move to the next task
 
 ## Sessions & Command Approval
@@ -290,29 +304,26 @@ This gives you control while keeping the conversation flowing naturally.
 
 Here are some examples of what you can ask termu:
 
-**File Management**
+### File Management & Code Editing
 
-- "find duplicate files by name in ./downloads"
-- "show me the largest files taking up space"
-- "organize photos by date into folders"
+- "Read the README.md and update the installation section"
+- "Find all TODO comments in TypeScript files and list them"
+- "Replace all occurrences of 'oldFunction' with 'newFunction' in src/utils.go"
+- "Create a new config.yaml file with database settings"
 
-**Code Analysis**
+### Data Analysis & Processing
 
-- "find all TODO comments in TypeScript files"
-- "count lines of code by language"
-- "show files that haven't been modified in 6 months"
+- "Find duplicate files by name in ./downloads"
+- "Search for the most common error in log files using ripgrep"
+- "Show me the largest files taking up disk space"
+- "Convert all YAML configs to JSON"
 
-**Data Processing**
+### Code Exploration
 
-- "convert all YAML configs to JSON"
-- "find the most common error in log files"
-- "merge these CSV files and remove duplicates"
-
-**System Maintenance**
-
-- "analyze which directories use the most disk space"
-- "find and preview log files from today"
-- "search for files containing sensitive information"
+- "List all Go files in the project recursively"
+- "Show me what changed in the last 5 git commits"
+- "Preview the main.go file with syntax highlighting"
+- "Find files that haven't been modified in 6 months"
 
 ## Troubleshooting
 

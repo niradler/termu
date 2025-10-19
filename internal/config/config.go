@@ -21,6 +21,8 @@ type ModelConfig struct {
 	Name     string `yaml:"name"`
 	Server   string `yaml:"server"`
 	Timeout  int    `yaml:"timeout"`
+	APIKey   string `yaml:"api_key"`  // API key for OpenAI-compatible providers
+	BaseURL  string `yaml:"base_url"` // Base URL for custom OpenAI-compatible endpoints
 }
 
 type SecurityConfig struct {

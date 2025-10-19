@@ -6,24 +6,17 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/compat_oai"
 	"github.com/firebase/genkit/go/plugins/ollama"
 	"github.com/niradler/termu/internal/config"
 	"github.com/niradler/termu/internal/tools"
+	"github.com/openai/openai-go/option"
 )
 
-type Provider interface {
-	GenerateResponse(ctx context.Context, messages []*ai.Message) (string, error)
-}
-
 type Agent struct {
-	provider Provider
-	genkit   *genkit.Genkit
-	tools    []ai.Tool
-}
-
-type OllamaProvider struct {
 	genkit *genkit.Genkit
 	model  ai.Model
+	tools  []ai.Tool
 }
 
 type Response struct {
@@ -32,85 +25,78 @@ type Response struct {
 }
 
 func New(ctx context.Context, cfg *config.Config) (*Agent, error) {
-	var provider Provider
 	var g *genkit.Genkit
-	var allTools []ai.Tool
+	var model ai.Model
 
 	switch cfg.Model.Provider {
 	case "ollama":
-		ollamaProvider, err := newOllamaProvider(ctx, cfg)
-		if err != nil {
-			return nil, err
+		plugin := &ollama.Ollama{
+			ServerAddress: cfg.Model.Server,
+			Timeout:       cfg.Model.Timeout,
 		}
-		provider = ollamaProvider
-		g = ollamaProvider.genkit
+		g = genkit.Init(ctx, genkit.WithPlugins(plugin))
+		model = plugin.DefineModel(g,
+			ollama.ModelDefinition{
+				Name: cfg.Model.Name,
+				Type: "chat",
+			},
+			&ai.ModelOptions{
+				Label: "Ollama - " + cfg.Model.Name,
+				Supports: &ai.ModelSupports{
+					Multiturn:  true,
+					SystemRole: true,
+					Tools:      true,
+					Media:      false,
+				},
+			},
+		)
 
-		fsTools := tools.DefineFilesystemTools(g, cfg.Workdir)
-		shellTool := tools.DefineShellTool(g, cfg.Workdir)
-		clipboardTools := tools.DefineClipboardTools(g)
-		allTools = append(fsTools, shellTool)
-		allTools = append(allTools, clipboardTools...)
-	default:
-		return nil, fmt.Errorf("unsupported provider: %s", cfg.Model.Provider)
-	}
+	case "openai":
+		opts := []option.RequestOption{option.WithAPIKey(cfg.Model.APIKey)}
+		if cfg.Model.BaseURL != "" {
+			opts = append(opts, option.WithBaseURL(cfg.Model.BaseURL))
+		}
 
-	return &Agent{
-		provider: provider,
-		genkit:   g,
-		tools:    allTools,
-	}, nil
-}
-
-func newOllamaProvider(ctx context.Context, cfg *config.Config) (*OllamaProvider, error) {
-	plugin := &ollama.Ollama{
-		ServerAddress: cfg.Model.Server,
-		Timeout:       cfg.Model.Timeout,
-	}
-
-	g := genkit.Init(ctx, genkit.WithPlugins(plugin))
-
-	model := plugin.DefineModel(g,
-		ollama.ModelDefinition{
-			Name: cfg.Model.Name,
-			Type: "chat",
-		},
-		&ai.ModelOptions{
-			Label: "Ollama - " + cfg.Model.Name,
+		plugin := &compat_oai.OpenAICompatible{
+			Opts:     opts,
+			Provider: "openai",
+			APIKey:   cfg.Model.APIKey,
+			BaseURL:  cfg.Model.BaseURL,
+		}
+		g = genkit.Init(ctx, genkit.WithPlugins(plugin))
+		model = plugin.DefineModel("openai", cfg.Model.Name, ai.ModelOptions{
+			Label: "OpenAI Compatible - " + cfg.Model.Name,
 			Supports: &ai.ModelSupports{
 				Multiturn:  true,
 				SystemRole: true,
 				Tools:      true,
 				Media:      false,
 			},
-		},
-	)
+		})
 
-	return &OllamaProvider{
+	default:
+		return nil, fmt.Errorf("unsupported provider: %s", cfg.Model.Provider)
+	}
+
+	// Initialize tools once
+	fsTools := tools.DefineFilesystemTools(g, cfg.Workdir)
+	shellTool := tools.DefineShellTool(g, cfg.Workdir)
+	clipboardTools := tools.DefineClipboardTools(g)
+	allTools := append(fsTools, shellTool)
+	allTools = append(allTools, clipboardTools...)
+
+	return &Agent{
 		genkit: g,
 		model:  model,
+		tools:  allTools,
 	}, nil
 }
 
-func (p *OllamaProvider) GenerateResponse(ctx context.Context, messages []*ai.Message) (string, error) {
-	resp, err := genkit.Generate(ctx, p.genkit,
-		ai.WithModel(p.model),
-		ai.WithMessages(messages...),
-	)
-
-	if err != nil {
-		return "", fmt.Errorf("failed to generate response: %w", err)
-	}
-
-	return resp.Text(), nil
-}
-
 func (a *Agent) Generate(ctx context.Context, userInput string, history []ai.Message) (*Response, error) {
-	systemPrompt := GetSystemPrompt()
-
 	messages := []*ai.Message{
 		{
 			Role:    ai.RoleSystem,
-			Content: []*ai.Part{ai.NewTextPart(systemPrompt)},
+			Content: []*ai.Part{ai.NewTextPart(GetSystemPrompt())},
 		},
 	}
 
@@ -129,7 +115,7 @@ func (a *Agent) Generate(ctx context.Context, userInput string, history []ai.Mes
 	}
 
 	resp, err := genkit.Generate(ctx, a.genkit,
-		ai.WithModel(a.getModel()),
+		ai.WithModel(a.model),
 		ai.WithMessages(messages...),
 		ai.WithTools(toolRefs...),
 	)
@@ -142,11 +128,4 @@ func (a *Agent) Generate(ctx context.Context, userInput string, history []ai.Mes
 		Text:    resp.Text(),
 		Command: "",
 	}, nil
-}
-
-func (a *Agent) getModel() ai.Model {
-	if ollamaProvider, ok := a.provider.(*OllamaProvider); ok {
-		return ollamaProvider.model
-	}
-	return nil
 }
