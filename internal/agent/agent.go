@@ -81,7 +81,9 @@ func New(ctx context.Context, cfg *config.Config) (*Agent, error) {
 	// Initialize tools once
 	fsTools := tools.DefineFilesystemTools(g, cfg.Workdir)
 	shellTool := tools.DefineShellTool(g, cfg.Workdir)
+	clipboardTools := tools.DefineClipboardTools(g)
 	allTools := append(fsTools, shellTool)
+	allTools = append(allTools, clipboardTools...)
 
 	return &Agent{
 		genkit: g,
