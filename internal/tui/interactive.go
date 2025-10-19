@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -129,6 +130,45 @@ func (m Model) Init() tea.Cmd {
 	return textarea.Blink
 }
 
+func stripThinking(content string) string {
+	result := content
+	for {
+		start := strings.Index(result, "<think>")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(result[start:], "</think>")
+		if end == -1 {
+			break
+		}
+		end += start + len("</think>")
+		result = result[:start] + result[end:]
+	}
+	return strings.TrimSpace(result)
+}
+
+func extractThinking(content string) string {
+	var thinking strings.Builder
+	temp := content
+	for {
+		start := strings.Index(temp, "<think>")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(temp[start:], "</think>")
+		if end == -1 {
+			break
+		}
+		thinkContent := temp[start+len("<think>") : start+end]
+		if thinking.Len() > 0 {
+			thinking.WriteString("\n\n")
+		}
+		thinking.WriteString(strings.TrimSpace(thinkContent))
+		temp = temp[start+end+len("</think>"):]
+	}
+	return thinking.String()
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
@@ -177,6 +217,56 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlL:
 			m.messages = []Message{}
 			m.updateViewport()
+
+		case tea.KeyCtrlT:
+			lastAssistantMsg := ""
+			for i := len(m.messages) - 1; i >= 0; i-- {
+				if m.messages[i].Role == "assistant" {
+					lastAssistantMsg = m.messages[i].Content
+					break
+				}
+			}
+
+			if lastAssistantMsg != "" {
+				thinkingText := extractThinking(lastAssistantMsg)
+				if thinkingText != "" {
+					m.messages = append(m.messages, Message{
+						Role:    "thinking",
+						Content: thinkingText,
+					})
+				} else {
+					m.messages = append(m.messages, Message{
+						Role:    "system",
+						Content: "💭 No thinking process found in last response",
+					})
+				}
+				m.updateViewport()
+			}
+
+		case tea.KeyCtrlY:
+			lastAssistantMsg := ""
+			for i := len(m.messages) - 1; i >= 0; i-- {
+				if m.messages[i].Role == "assistant" {
+					lastAssistantMsg = m.messages[i].Content
+					break
+				}
+			}
+
+			if lastAssistantMsg != "" {
+				cleanMsg := stripThinking(lastAssistantMsg)
+				if err := clipboard.WriteAll(cleanMsg); err == nil {
+					m.messages = append(m.messages, Message{
+						Role:    "system",
+						Content: "📋 Last response copied to clipboard",
+					})
+				} else {
+					m.messages = append(m.messages, Message{
+						Role:    "error",
+						Content: fmt.Sprintf("Failed to copy: %v", err),
+					})
+				}
+				m.updateViewport()
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -381,7 +471,7 @@ func (m Model) renderHeader() string {
 
 func (m Model) renderFooter() string {
 	help := HelpStyle.Render(
-		"Enter: Send/Approve • Esc: Reject • Ctrl+L: Clear • Ctrl+D: Exit",
+		"Enter: Send/Approve • Esc: Reject • Ctrl+Y: Copy Last Response • Ctrl+T: Show Thinking • Ctrl+L: Clear • Ctrl+D: Exit",
 	)
 	return help
 }
@@ -413,10 +503,11 @@ func (m *Model) updateViewport() {
 		case "assistant":
 			b.WriteString(InfoStyle.Render("🤖 termu: "))
 			b.WriteString("\n")
-			if rendered, err := m.mdRenderer.Render(msg.Content); err == nil {
+			displayContent := stripThinking(msg.Content)
+			if rendered, err := m.mdRenderer.Render(displayContent); err == nil {
 				b.WriteString(rendered)
 			} else {
-				b.WriteString(msg.Content)
+				b.WriteString(displayContent)
 			}
 			b.WriteString("\n")
 
@@ -440,6 +531,12 @@ func (m *Model) updateViewport() {
 
 		case "system":
 			b.WriteString(HelpStyle.Render("ℹ️  " + msg.Content))
+			b.WriteString("\n")
+
+		case "thinking":
+			b.WriteString(HelpStyle.Render("💭 Thinking process:"))
+			b.WriteString("\n")
+			b.WriteString(msg.Content)
 			b.WriteString("\n")
 		}
 	}

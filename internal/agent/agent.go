@@ -47,7 +47,9 @@ func New(ctx context.Context, cfg *config.Config) (*Agent, error) {
 
 		fsTools := tools.DefineFilesystemTools(g, cfg.Workdir)
 		shellTool := tools.DefineShellTool(g, cfg.Workdir)
+		clipboardTools := tools.DefineClipboardTools(g)
 		allTools = append(fsTools, shellTool)
+		allTools = append(allTools, clipboardTools...)
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", cfg.Model.Provider)
 	}
